@@ -1,1 +1,12 @@
-tensorflow
+nltk
+fastapi
+uvicorn
+scikit-learn
+fuzzywuzzy
+spicy
+spacy
+pandas
+torch
+transformers
+sentencepiece
+python-Levenshtein
