@@ -10,3 +10,6 @@ torch
 transformers
 sentencepiece
 python-Levenshtein
+gensim
+xgboost
+sentence-transformers

@@ -14,19 +14,23 @@ from models.svm import LinearSvcModel
 from models.siamese_bert import SiameseBERT
 from models.sentence_bert import SentenceBERT
 from models.siamese_roberta import SiameseRoBERTa
+from models.transformer_minilm import TransformerMiniLM
+from models.xgboost import XGBoostModel
 from transformers import RobertaTokenizer
 from fuzzywuzzy import fuzz
 from models.nn import NNModel
-from utils.text import convert_to_sequence, pad_sequence, preprocess_text
+from utils.text import convert_to_sequence, pad_sequence, preprocess_text, lemmatize, remove_stop_words, tokenize
 from scipy.sparse import hstack
 
 app = FastAPI(verify_ssl=False)
 
+#TODO: implement clustering
 
 class ApiModel(BaseModel):
     fwModel: Optional[str] = ''
     text1: Optional[str] = ''
     text2: Optional[str] = ''
+    model: Optional[str] = ""
 
 
 @app.get("/")
@@ -48,6 +52,7 @@ async def lr_model_qp_similarity(request: ApiModel):
     return get_lr_model_qp_similarity(request)
 
 # Linear support vector machine
+# TODO: fix issue
 @app.post("/svm-model-qp-similarity")
 async def svm_model_qp_similarity(request: ApiModel):
     return get_svm_model_qp_similarity(request)
@@ -72,7 +77,32 @@ async def siamese_roberta_similarity(request: ApiModel):
 async def siamese_bert_similarity(request: ApiModel):
     return get_sentence_bert_similarity(request)
 
+# XG-Boost
+# TODO: implement
+@app.post("/xgboost-similarity")
+async def xgboost_similarity(request: ApiModel):
+    return xg_boost_qp_similarty(request)
+
+# Transformer Mini-LM
+# sentence-transformers/all-MiniLM-L6-v2
+# sentence-transformers/all-MiniLM-L12-v2
+# sentence-transformers/all-roberta-large-v1
+# sentence-transformers/all-mpnet-base-v2
+# sentence-transformers/paraphrase-MiniLM-L6-v2
+# sentence-transformers/multi-qa-mpnet-base-dot-v1
+@app.post("/minilm-similarity")
+async def minilm_similarity(request: ApiModel):
+    return get_transformer_minilm_similarity(request)
+
+# Keras BERT
+# TODO: implement
+@app.post("/keras-bert-similarity")
+async def keras_bert_similarity(request: ApiModel):
+    # return get_keras_bert_similarity(request)
+    return
+
 # Neural network
+# TODO: implement
 @app.post("/nn-qp-similarity")
 async def nn_qp_similarity(request: ApiModel):
     return get_nn_model_qp_similarity(request)
@@ -96,6 +126,23 @@ def get_fuzzywuzzy_similarity(request):
     json_compatible_item_data = jsonable_encoder([
         {
             'similarity': similarity_score
+        }
+    ])
+    return JSONResponse(content=json_compatible_item_data)
+
+
+def get_transformer_minilm_similarity(request):
+    # Create an instance of the QuestionSimilarity class
+    similarity_model = TransformerMiniLM(request.model)
+
+    # Calculate similarity using the model
+    similarity_score = similarity_model.calculate_similarity(request.text1, request.text2)
+
+    # Print the similarity score
+    print("Similarity score:", similarity_score)
+    json_compatible_item_data = jsonable_encoder([
+        {
+            'similarity': float(similarity_score)
         }
     ])
     return JSONResponse(content=json_compatible_item_data)
@@ -184,15 +231,24 @@ def get_lr_model_qp_similarity(request):
 
     lr_model = nn.get_lr_model()
     vectorizer = nn.get_vectorizer()
-    features = vectorizer.fit_transform([t1 + ' ' + t2])
+    q1_vec = vectorizer.transform([t1])
+    q2_vec = vectorizer.transform([t2])
+    feature_vec = q1_vec + q2_vec
 
-    similarity_score = lr_model.predict_proba(features)[:, 1]
+    similarity_score = lr_model.predict_proba(feature_vec)[:, 1]
+    similarity = np.round(similarity_score[0], 2)
     json_compatible_item_data = jsonable_encoder([
         {
-            'similarity': similarity_score[0]
+            'similarity': similarity
         }
     ])
     return JSONResponse(content=json_compatible_item_data)
+
+
+def xg_boost_qp_similarty(request):
+    # Preprocess the questions
+    question1_tokens = lemmatize(remove_stop_words(tokenize(request.text1)))
+    question2_tokens = lemmatize(remove_stop_words(tokenize(request.text2)))
 
 
 def get_svm_model_qp_similarity(request):
@@ -288,11 +344,12 @@ def get_cosine_similarity(request):
 def get_cosine_2_similarity(request):
     sentences = [request.text1, request.text2]
     nlp = spacy.load('en_core_web_md')
-    embeddings = [nlp(sentence).vector for sentence in sentences]
-    similarity = cosine_similarity(embeddings[0], embeddings[1])
+    embeddings = np.array([nlp(sentence).vector for sentence in sentences])
+    embeddings = embeddings.reshape(2, -1) 
+    similarity = cosine_similarity(embeddings)
     json_compatible_item_data = jsonable_encoder([
         {
-            'similarity': similarity
+            'similarity': float(similarity[0][1])
         }
 
     ])

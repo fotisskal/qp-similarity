@@ -4,6 +4,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.feature_extraction.text import TfidfVectorizer
 from joblib import dump, load
 import pandas as pd
+from os import path
 from utils.text import preprocess_text
 
 class LogisticRegressionModel:
@@ -18,7 +19,7 @@ class LogisticRegressionModel:
         self.data['question2'] = self.data['question2'].apply(preprocess_text)
 
     def feature_extraction(self):
-        self.vectorizer = TfidfVectorizer()
+        self.vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2), max_df=0.5)
         self.features = self.vectorizer.fit_transform(self.data['question1'] + ' ' + self.data['question2'])
 
     def split_dataset(self):
@@ -31,17 +32,17 @@ class LogisticRegressionModel:
     def evaluate(self):
         y_pred = self.lr_model.predict(self.X_test)
         accuracy = accuracy_score(self.y_test, y_pred)
-        print("Accuracy: " + accuracy)
+        print("Accuracy: " + str(accuracy))
 
     def find_model(self):
-        model = load('library/logreg_model.joblib')
-        if model:
+        if path.exists('library/logreg_model.joblib'):
+            model = load('library/logreg_model.joblib')
             print("Model already loaded!")
             self.trained = True
             return model
         else:
             self.trained = False
-            return LogisticRegression(max_iter=500, verbose=1)
+            return LogisticRegression(C=5, random_state=42, max_iter=500, verbose=1)
 
     def get_lr_model(self):
         return self.lr_model

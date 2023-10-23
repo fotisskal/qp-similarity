@@ -1,6 +1,20 @@
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
+import nltk
+import re
 from nltk.stem import PorterStemmer, WordNetLemmatizer
+
+# Define preprocessing functions
+def tokenize(text):
+    return nltk.word_tokenize(text.lower())
+
+def remove_stop_words(tokens):
+    stop_words = set(stopwords.words('english'))
+    return [token for token in tokens if token not in stop_words]
+
+def lemmatize(tokens):
+    lemmatizer = WordNetLemmatizer()
+    return [lemmatizer.lemmatize(token) for token in tokens]
 
 def preprocess_text(text):
     if isinstance(text, str):
@@ -26,6 +40,15 @@ def preprocess_text(text):
     else:
         return ''
 
+# Define a function to clean the text
+def clean_text(text):
+    # Convert to lowercase
+    text = text.lower()
+    # Remove punctuation
+    text = re.sub(r'[^\w\s]', '', text)
+    # Remove stop words
+    text = " ".join([word for word in text.split() if word not in stopwords])
+    return text
 
 def convert_to_sequence(text, word_to_index):
     """
