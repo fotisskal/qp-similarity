@@ -13,3 +13,6 @@ python-Levenshtein
 gensim
 xgboost
 sentence-transformers
+keras
+tensorflow
+tensorflow-metal
